@@ -19,6 +19,7 @@ class OrderItem(BaseModel):
 
 
 class PaymentEvent(BaseModel):
+    event_id: str
     order_id: int
     type: PaymentType
     items: list[OrderItem]
@@ -26,6 +27,7 @@ class PaymentEvent(BaseModel):
 
 
 class InventoryResponse(BaseModel):
+    event_id: str
     type: InventoryResponseType
     order_id: int
     reason: str | None = None

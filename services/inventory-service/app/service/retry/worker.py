@@ -3,6 +3,7 @@ import asyncio
 from pydantic import ValidationError
 
 from app.consumer import KafkaConsumer
+from app.db import SessionLocal
 from app.producer import KafkaProducer
 from app.core.config import Settings
 from app.service.inventory.schema import PaymentEvent
@@ -21,7 +22,6 @@ async def retry_worker(
     )
 
     producer = KafkaProducer(settings)
-    service = InventoryService()
 
     await consumer.start()
     await producer.start()
@@ -38,15 +38,18 @@ async def retry_worker(
                 # validation
                 payment_event = PaymentEvent.model_validate(event)
 
-                # business logic
-                inventory_event = service.proccess(payment_event)
+                async with SessionLocal() as session:
+                    service = InventoryService(session)
 
-                await producer.send(
-                    settings.kafka_inventory_topic,
-                    inventory_event.model_dump()
-                )
+                    # business logic
+                    inventory_event = await service.proccess(payment_event)
 
-                print(f"[{topic}] SUCCESS")
+                    await producer.send(
+                        settings.kafka_inventory_topic,
+                        inventory_event.model_dump()
+                    )
+
+                    print(f"[{topic}] SUCCESS")
 
             except ValidationError:
                 # мусорные данные → сразу в DLQ
