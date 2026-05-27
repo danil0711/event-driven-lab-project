@@ -1,13 +1,18 @@
-from enum import Enum
-from pydantic import BaseModel
+import random
+
+from app.services.payments.schema import PaymentProcessEvent
 
 
-class PaymentType(str, Enum):
-    SUCCESS = "payment_success"
-    FAILED = "payment_failed"
 
+class PaymentService:
+    def process(self, event: dict) -> dict:
+        # симуляция оплаты
+        if random.random() < 0.7:
+            return PaymentProcessEvent(
+                type="payment_success", order_id=event["order_id"], reason=None, items=event["items"]
+            )
 
-class PaymentProcessEvent(BaseModel):
-    order_id: int
-    type: PaymentType
-    reason: str | None = None
+        else:
+            return PaymentProcessEvent(
+                type="payment_failed", order_id=event["order_id"], reason="random_fail", items=event["items"]
+            )
