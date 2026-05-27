@@ -28,6 +28,7 @@ class PaymentService:
         # симуляция оплаты
         if random.random() < 0.7:
             payment_event  = PaymentProcessEvent(
+                event_id=event["event_id"],
                 type="payment_success",
                 order_id=event["order_id"],
                 reason=None,
@@ -36,6 +37,7 @@ class PaymentService:
 
         else:
             payment_event  = PaymentProcessEvent(
+                event_id=event["event_id"],
                 type="payment_failed",
                 order_id=event["order_id"],
                 reason="random_fail",

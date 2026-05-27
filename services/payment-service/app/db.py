@@ -10,7 +10,6 @@ engine = create_async_engine(
     echo=False,
 )
 
-print(settings.postgres_dsn)
 
 SessionLocal = async_sessionmaker(
     bind=engine,

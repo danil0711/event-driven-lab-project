@@ -13,6 +13,7 @@ class OrderItem(BaseModel):
 
 
 class PaymentProcessEvent(BaseModel):
+    event_id: str
     order_id: int
     type: PaymentType
     reason: str | None = None
