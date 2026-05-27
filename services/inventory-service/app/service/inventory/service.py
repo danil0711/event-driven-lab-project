@@ -9,7 +9,7 @@ STOCK = {10: 50, 20: 100}
 
 class InventoryService:
     def proccess(self, event: PaymentEvent) -> InventoryResponse:
-        if random.random() < 0.1:
+        if random.random() < 0.5:
             raise Exception("Inventory service crashed")
 
         if event.type != PaymentType.SUCCESS:

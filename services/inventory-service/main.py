@@ -1,5 +1,7 @@
 import asyncio
 
+from pydantic import ValidationError
+
 from app.consumer import KafkaConsumer
 from app.core.config import get_settings
 from app.producer import KafkaProducer
@@ -24,15 +26,30 @@ async def main():
 
     try:
         async for event in consumer.listen():
-            print("Получен event:", event)
+            try:
+                event = PaymentEvent.model_validate(event)
+            except ValidationError:
+                print("Некорректный пейлоад")
+                continue
 
-            event = PaymentEvent.model_validate(event)
+            try:
+                inventory_event = service.proccess(event)
 
-            inventory_event = service.proccess(event)
+                print("Отправка", inventory_event)
 
-            await producer.send(
-                settings.kafka_inventory_topic, inventory_event.model_dump()
-            )
+                await producer.send(
+                    settings.kafka_inventory_topic, inventory_event.model_dump()
+                )
+            except Exception as e:
+                print("FAILED EVENT:", e)
+
+                await producer.send(
+                    settings.kafka_inventory_retry_1s_topic,
+                    {
+                        **event.model_dump(),
+                        "retry_count": 1
+                    }
+                )
 
     finally:
         await consumer.stop()

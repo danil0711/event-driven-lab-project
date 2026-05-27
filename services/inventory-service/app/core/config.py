@@ -21,6 +21,21 @@ class Settings(BaseSettings):
         default="inventory"
     )
 
+
+    kafka_inventory_retry_1s_topic : KafkaTopic = Field(
+        default="inventory-retry-1s"
+    )
+    kafka_inventory_retry_10s_topic : KafkaTopic = Field(
+        default="inventory-retry-10s"
+    )
+    kafka_inventory_retry_1m_topic : KafkaTopic = Field(
+        default="inventory-retry-1m"
+    )
+
+    kafka_inventory_dlq_topic: KafkaTopic = Field(
+        default="inventory-dlq"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
