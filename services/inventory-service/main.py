@@ -2,6 +2,7 @@ import asyncio
 
 from pydantic import ValidationError
 
+from app.bootstrap.kafka.ensure_topics import ensure_topics
 from app.consumer import KafkaConsumer
 from app.core.config import get_settings
 from app.db import SessionLocal
@@ -14,6 +15,7 @@ settings = get_settings()
 
 async def main():
     print("Старт сервиса")
+    await ensure_topics()
 
     consumer = KafkaConsumer(
         topic=settings.kafka_payments_topic, group_id="payments-consumer"
@@ -30,6 +32,8 @@ async def main():
             except ValidationError:
                 print("Некорректный пейлоад")
                 continue
+
+            print('Получено событие:', event)
 
             async with SessionLocal() as session:
                 service = InventoryService(session)
