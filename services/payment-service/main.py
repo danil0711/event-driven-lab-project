@@ -1,10 +1,10 @@
 import asyncio
 
 from app.consumer import KafkaConsumer
+from app.core.bootstrap.kafka import ensure_topics
 from app.core.config import get_settings
 from app.core.db import async_session_maker
 from app.producer import KafkaProducer
-from app.services.outbox.service import OutboxPublisher
 from app.services.payments.service import PaymentService
 
 settings = get_settings()
@@ -12,6 +12,8 @@ settings = get_settings()
 
 async def main():
     print("Старт сервиса")
+
+    await ensure_topics()
 
     consumer = KafkaConsumer(
         topic=settings.kafka_orders_topic,
