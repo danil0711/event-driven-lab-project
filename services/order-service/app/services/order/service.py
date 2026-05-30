@@ -2,25 +2,21 @@ import uuid
 
 from sqlalchemy.exc import SQLAlchemyError
 
-
-from app.core.types import KafkaTopic
 from app.events.orders import OrderCreatedEvent
 from app.models.orders import Order, OrderStatus
+from app.models.outbox_events import OutboxEvent, OutboxStatus
 from app.services.order.schema import OrderItem
 
 _PRICES = {10: 50, 20: 100}
 
 
 class OrderService:
-    def __init__(self, session, kafka, topic: KafkaTopic):
+    def __init__(self, session):
         self.session = session
-        self.kafka = kafka
-        self.topic = topic
 
     async def create_order(self, user_id: int, items: list[OrderItem]):
         total_amount = sum(
-            item.quantity * self.get_price(item.product_id)
-            for item in items
+            item.quantity * self.get_price(item.product_id) for item in items
         )
 
         order = Order(
@@ -28,14 +24,7 @@ class OrderService:
         )
 
         self.session.add(order)
-
-        try:
-            await self.session.commit()
-        except SQLAlchemyError:
-            await self.session.rollback()
-            raise
-
-        await self.session.refresh(order)
+        await self.session.flush()
 
         event = OrderCreatedEvent(
             event_id=str(uuid.uuid4()),
@@ -45,7 +34,22 @@ class OrderService:
             total_amount=total_amount,
         )
 
-        await self.kafka.publish(self.topic, event.model_dump(mode="json"))
+        outbox_event = OutboxEvent(
+            event_id=event.event_id,
+            type=event.type,
+            payload=event.model_dump(mode="json"),
+            status=OutboxStatus.PENDING.value,
+        )
+
+        self.session.add(outbox_event)
+
+        try:
+            await self.session.commit()
+        except SQLAlchemyError:
+            await self.session.rollback()
+            raise
+
+        await self.session.refresh(order)
 
         return order
 
@@ -57,4 +61,3 @@ class OrderService:
             raise ValueError(f"Продукт не найден по айди: {product_id}")
 
         return price
-

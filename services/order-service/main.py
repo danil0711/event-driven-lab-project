@@ -8,9 +8,6 @@ from app.api.orders import router as order_router
 app = FastAPI()
 
 
-
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     kafka = KafkaProducer()
@@ -22,6 +19,7 @@ async def lifespan(app: FastAPI):
     yield
 
     await kafka.stop()
+
 
 app = FastAPI(lifespan=lifespan)
 

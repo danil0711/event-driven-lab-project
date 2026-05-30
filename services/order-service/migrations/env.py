@@ -11,6 +11,8 @@ from alembic import context
 
 from app.models.base import Base
 from app.models.orders import Order
+from app.models.outbox_events import OutboxEvent
+from app.models.processed_requests import ProcessedEvent
 
 
 # this is the Alembic Config object, which provides

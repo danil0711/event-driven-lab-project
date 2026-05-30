@@ -16,12 +16,9 @@ settings = get_settings()
 
 def get_service(
     session: Session = Depends(get_session),
-    kafka=Depends(get_kafka),
 ):
     return OrderService(
         session=session,
-        kafka=kafka,
-        topic=settings.kafka_orders_topic,
     )
 
 
