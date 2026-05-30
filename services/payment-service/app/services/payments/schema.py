@@ -12,6 +12,15 @@ class OrderItem(BaseModel):
     quantity: int
 
 
+class OrderCreatedIntegrationEvent(BaseModel):
+    event_id: str
+    type: str = "order_created"
+    order_id: int
+    user_id: int
+    items: list[OrderItem]
+    total_amount: int
+
+
 class PaymentProcessEvent(BaseModel):
     event_id: str
     order_id: int

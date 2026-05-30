@@ -2,8 +2,9 @@ import asyncio
 
 from app.consumer import KafkaConsumer
 from app.core.config import get_settings
-from app.db import SessionLocal
+from app.core.db import async_session_maker
 from app.producer import KafkaProducer
+from app.services.outbox.service import OutboxPublisher
 from app.services.payments.service import PaymentService
 
 settings = get_settings()
@@ -19,27 +20,19 @@ async def main():
 
     producer = KafkaProducer(settings)
 
-
     await consumer.start()
     await producer.start()
 
     try:
         async for event in consumer.listen():
-            print('Получен event:', event['event_id'], event)
+            print("Получен event:", event["event_id"], event)
 
-            async with SessionLocal() as session:
+            async with async_session_maker() as session:
                 service = PaymentService(session)
-
-                payment_event = await service.process(event)
-
-                if payment_event is None: 
-                    continue
-
-                print('payment_event:', payment_event)
-
-                await producer.send(
-                    settings.kafka_payments_topic, payment_event.model_dump()
-                )
+                try:
+                    await service.process(event)
+                except Exception as e:
+                    print(f"Ошибка обработки event {event['event_id']}: {e}")
 
     finally:
         await consumer.stop()

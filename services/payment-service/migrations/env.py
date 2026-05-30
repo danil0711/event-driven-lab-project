@@ -10,9 +10,9 @@ from sqlalchemy.engine import Connection
 from alembic import context
 
 from app.models.base import Base
+from app.models.outbox_events import OutboxEvent
 from app.models.payments import Payment
 from app.models.processed_event import ProcessedEvent
-
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
