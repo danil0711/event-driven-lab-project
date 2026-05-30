@@ -4,6 +4,7 @@ from pydantic import ValidationError
 
 from app.bootstrap.kafka.ensure_topics import ensure_topics
 from app.consumer import KafkaConsumer
+from app.core.logger import logger
 from app.core.config import get_settings
 from app.db import SessionLocal
 from app.producer import KafkaProducer
@@ -33,27 +34,24 @@ async def main():
                 print("Некорректный пейлоад")
                 continue
 
-            print('Получено событие:', event)
+            try:
+                async with SessionLocal() as session:
+                    service = InventoryService(session)
 
-            async with SessionLocal() as session:
-                service = InventoryService(session)
+                    await service.process(event)
+                    await session.commit()
 
-                try:
-                    inventory_event = await service.proccess(event)
+                    logger.info(f'event помещен в аутбокс: {event.event_id}')
 
-                    if inventory_event is None:
-                        continue
+                    await consumer.consumer.commit()
+                
+            except Exception as e:
+                logger.error(f"Processing failed, event: {event.event_id}, {e}")
 
-                    await producer.send(
-                        settings.kafka_inventory_topic, inventory_event.model_dump()
-                    )
-                except Exception as e:
-                    print("FAILED EVENT:", e)
+                # rollback уже внутри service или здесь
+                # НИЧЕГО НЕ КОММИТИМ В KAFKA
 
-                    await producer.send(
-                        settings.kafka_inventory_retry_1s_topic,
-                        {**event.model_dump(), "retry_count": 1},
-                    )
+                continue
 
     finally:
         await consumer.stop()

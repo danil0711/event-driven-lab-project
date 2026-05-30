@@ -19,10 +19,6 @@ async def ensure_topics() -> None:
         required_topics = [
             settings.kafka_payments_topic,
             settings.kafka_inventory_topic,
-            settings.kafka_inventory_retry_1s_topic,
-            settings.kafka_inventory_retry_10s_topic,
-            settings.kafka_inventory_retry_1m_topic,
-            settings.kafka_inventory_dlq_topic,
         ]
 
         missing_topics = [

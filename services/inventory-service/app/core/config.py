@@ -17,11 +17,6 @@ class Settings(BaseSettings):
 
     kafka_inventory_topic: KafkaTopic = Field(default="inventory")
 
-    kafka_inventory_retry_1s_topic: KafkaTopic = Field(default="inventory-retry-1s")
-    kafka_inventory_retry_10s_topic: KafkaTopic = Field(default="inventory-retry-10s")
-    kafka_inventory_retry_1m_topic: KafkaTopic = Field(default="inventory-retry-1m")
-
-    kafka_inventory_dlq_topic: KafkaTopic = Field(default="inventory-dlq")
 
     postgres_user: str = Field(
         validation_alias="POSTGRES_USER",

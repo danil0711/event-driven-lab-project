@@ -22,6 +22,7 @@ class KafkaConsumer:
             bootstrap_servers=settings.kafka_bootstrap_servers,
             group_id=group_id,
             value_deserializer=_deserialize,
+            enable_auto_commit=False,
         )
 
     async def start(self):

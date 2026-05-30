@@ -11,6 +11,7 @@ from alembic import context
 
 from app.models.base import Base
 
+from app.models.outbox_events import OutboxEvent
 from app.models.processed_event import ProcessedEvent
 
 

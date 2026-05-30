@@ -1,9 +1,8 @@
 # Остатки товаров
 import random
 
-from sqlalchemy import select
-
-from app.models.processed_event import ProcessedEvent
+from app.core.logger import logger
+from app.models.outbox_events import OutboxEvent
 from app.service.inventory.schema import (
     InventoryResponse,
     InventoryResponseType,
@@ -19,32 +18,31 @@ class InventoryService:
     def __init__(self, session):
         self.session = session
 
-    async def proccess(self, event: PaymentEvent) -> InventoryResponse:
-        if random.random() < 0.5:
-            raise Exception("Inventory service crashed")
+    async def process(self, event: PaymentEvent) -> None:
+        # if random.random() < 0.5:
+        #     raise Exception("Inventory service crashed")
 
+        response = await self._handle(event)
+
+        await self._write_outbox(response)
+
+
+    async def _handle(self, event: PaymentEvent) -> InventoryResponse:
         event_id = event.event_id
 
         if event.type != PaymentType.SUCCESS:
+            logger.debug('Payment не success')
             return InventoryResponse(
                 event_id=event_id,
                 type=InventoryResponseType.INVENTORY_SKIPPED,
                 order_id=event.order_id,
             )
 
-        stmt = select(ProcessedEvent).where(ProcessedEvent.event_id == event_id)
-
-        query_result = await self.session.execute(stmt)
-        already = query_result.scalar_one_or_none()
-
-        if already:
-            print(f'Дублирующее событие: {event_id}, пропуск')
-            return None
-
         for item in event.items:
             available = STOCK.get(item.product_id)
 
             if available < item.quantity:
+                logger.debug('Inventory failed')
                 return InventoryResponse(
                     event_id=event_id,
                     type=InventoryResponseType.INVENTORY_FAILED,
@@ -56,11 +54,17 @@ class InventoryService:
         for item in event.items:
             STOCK[item.product_id] -= item.quantity
 
-        self.session.add(ProcessedEvent(event_id=event_id))
-        await self.session.commit()
-
         return InventoryResponse(
             event_id=event_id,
             type=InventoryResponseType.INVENTORY_RESERVED,
             order_id=event.order_id,
+        )
+
+    async def _write_outbox(self, response: InventoryResponse):
+        self.session.add(
+            OutboxEvent(
+                event_id=response.event_id,
+                type=response.type,
+                payload=response.model_dump(mode="json"),
+            )
         )
