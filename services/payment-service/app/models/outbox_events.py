@@ -23,7 +23,7 @@ class OutboxEvent(Base):
 
     retry_count = Column(Integer, nullable=False, default=0)
 
-    next_attempt_at = Column(DateTime, nullable=True)
+    next_attempt_at = Column(DateTime(timezone=True), nullable=True)
 
     last_error = Column(String, nullable=True)
 
