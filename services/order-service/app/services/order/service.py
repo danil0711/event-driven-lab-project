@@ -1,7 +1,5 @@
 import uuid
 
-from sqlalchemy.exc import SQLAlchemyError
-
 from app.events.orders import OrderCreatedEvent
 from app.models.orders import Order, OrderStatus
 from app.models.outbox_events import OutboxEvent, OutboxStatus
@@ -14,7 +12,7 @@ class OrderService:
     def __init__(self, session):
         self.session = session
 
-    async def create_order(self, user_id: int, items: list[OrderItem]):
+    async def create_order(self, user_id: int, items: list[OrderItem]) -> Order:
         total_amount = sum(
             item.quantity * self.get_price(item.product_id) for item in items
         )
@@ -34,22 +32,7 @@ class OrderService:
             total_amount=total_amount,
         )
 
-        outbox_event = OutboxEvent(
-            event_id=event.event_id,
-            type=event.type,
-            payload=event.model_dump(mode="json"),
-            status=OutboxStatus.PENDING.value,
-        )
-
-        self.session.add(outbox_event)
-
-        try:
-            await self.session.commit()
-        except SQLAlchemyError:
-            await self.session.rollback()
-            raise
-
-        await self.session.refresh(order)
+        await self._write_outbox(event)
 
         return order
 
@@ -61,3 +44,13 @@ class OrderService:
             raise ValueError(f"Продукт не найден по айди: {product_id}")
 
         return price
+
+    async def _write_outbox(self, event: OrderCreatedEvent):
+        self.session.add(
+            OutboxEvent(
+                event_id=event.event_id,
+                type=event.type,
+                payload=event.model_dump(mode="json"),
+                status=OutboxStatus.PENDING.value,
+            )
+        )

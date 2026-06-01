@@ -1,37 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import get_settings
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
-from app.dependencies.kafka import get_kafka
 from app.services.order.service import OrderService
 from app.services.order.schema import CreateOrderRequest
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-
-# временно глобальный producer (потом можно улучшить DI)
-
 settings = get_settings()
-
-def get_service(
-    session: Session = Depends(get_session),
-):
-    return OrderService(
-        session=session,
-    )
 
 
 @router.post("")
 async def create_order(
     request: CreateOrderRequest,
-    service: OrderService = Depends(get_service),
+    session: AsyncSession = Depends(get_session),
 ):
+    service = OrderService(session)
+
     try:
-        return await service.create_order(
-            user_id=request.user_id,
-            items=request.items,
-        )
+        async with session.begin():
+            order = await service.create_order(
+                user_id=request.user_id,
+                items=request.items,
+            )
+
+        return {
+            "order_id": order.id,
+            "status": order.status,
+        }
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    except SQLAlchemyError:
+        raise HTTPException(status_code=500, detail="Database error")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
