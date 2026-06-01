@@ -18,13 +18,15 @@ class PaymentService:
 
     async def process(self, event: OrderCreatedIntegrationEvent) -> None:
 
+        event = OrderCreatedIntegrationEvent.model_validate(event)
+
         is_new = await self.claim_event(event.event_id)
 
         if not is_new:
             logger.info(f"Duplicate event {event.event_id}")
             return
 
-        event = OrderCreatedIntegrationEvent.model_validate(event)
+        
 
         # симуляция оплаты
         payment_event = PaymentService._build_payment_event(event)
@@ -49,7 +51,7 @@ class PaymentService:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none() is not None
 
-    def _write_outbox(self, event: PaymentProcessEvent):
+    async def _write_outbox(self, event: PaymentProcessEvent):
         outbox_event = OutboxEvent(
             event_id=event.event_id,
             type=event.type,
