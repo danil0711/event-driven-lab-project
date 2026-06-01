@@ -7,8 +7,10 @@ from app.models.base import Base
 
 class OrderStatus(str, enum.Enum):
     CREATED = "created"
+
     PAID = "paid"
     FAILED = "failed"
+
     CANCELLED = "cancelled"
 
 

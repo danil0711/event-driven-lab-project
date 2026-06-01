@@ -35,7 +35,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    
     kafka_bootstrap_servers: str = Field(
         validation_alias="KAFKA_BOOTSTRAP_SERVERS",
     )
@@ -44,6 +43,7 @@ class Settings(BaseSettings):
         default="orders",
     )
 
+    kafka_payments_topic: KafkaTopic = Field(default="payments")
 
     @property
     def postgres_dsn(self) -> str:
