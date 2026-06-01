@@ -13,6 +13,8 @@ class OrderStatus(str, enum.Enum):
 
     CANCELLED = "cancelled"
 
+    COMPLETED = "completed"
+
 
 class Order(Base):
     __tablename__ = "orders"

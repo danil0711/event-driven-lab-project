@@ -4,20 +4,18 @@ from app.consumer import KafkaConsumer
 from app.core.logger import logger
 from app.core.config import get_settings
 from app.db import async_session_maker
-from app.services.saga.schema import PaymentProcessEvent
-from app.services.saga.service import SagaService
+from app.services.saga.payments.schema import PaymentProcessEvent
+from app.services.saga.payments.service import SagaService
 
 
 settings = get_settings()
 
 
-async def saga_consumer():
+async def payments_saga_worker():
     consumer = KafkaConsumer(
         topic=settings.kafka_payments_topic,
         group_id="order-saga-consumer",
     )
-
-    print(consumer)
 
     await consumer.start()
 
@@ -35,4 +33,4 @@ async def saga_consumer():
 
 
 if __name__ == "__main__":
-    asyncio.run(saga_consumer())
+    asyncio.run(payments_saga_worker())

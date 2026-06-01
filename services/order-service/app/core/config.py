@@ -43,6 +43,8 @@ class Settings(BaseSettings):
         default="orders",
     )
 
+    kafka_inventory_topic: KafkaTopic = Field(default="inventory")
+
     kafka_payments_topic: KafkaTopic = Field(default="payments")
 
     @property

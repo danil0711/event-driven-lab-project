@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.models.orders import Order, OrderStatus
 from app.models.processed_requests import ProcessedEvent
-from app.services.saga.schema import PaymentProcessEvent, PaymentType
+from app.services.saga.payments.schema import PaymentProcessEvent, PaymentType
 
 
 class SagaService:
