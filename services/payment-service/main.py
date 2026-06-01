@@ -33,7 +33,11 @@ async def main():
                 service = PaymentService(session)
                 try:
                     await service.process(event)
+                    await session.commit()
+
+                    await consumer.consumer.commit()
                 except Exception as e:
+                    await session.rollback()
                     print(f"Ошибка обработки event {event['event_id']}: {e}")
 
     finally:

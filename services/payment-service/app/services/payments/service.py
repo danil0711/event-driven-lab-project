@@ -1,9 +1,11 @@
 import random
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.dialects.postgresql import insert
 
-from app.models.outbox_events import OutboxEvent
+from app.core.logger import logger
 from app.models.payments import Payment
+from app.models.outbox_events import OutboxEvent
+from app.models.processed_event import ProcessedEvent
 from app.services.payments.schema import (
     OrderCreatedIntegrationEvent,
     PaymentProcessEvent,
@@ -16,6 +18,12 @@ class PaymentService:
 
     async def process(self, event: OrderCreatedIntegrationEvent) -> None:
 
+        is_new = await self.claim_event(event.event_id)
+
+        if not is_new:
+            logger.info(f"Duplicate event {event.event_id}")
+            return
+
         event = OrderCreatedIntegrationEvent.model_validate(event)
 
         # симуляция оплаты
@@ -26,21 +34,29 @@ class PaymentService:
             status=payment_event.type,
             amount=event.total_amount,
         )
+        self.session.add(payment)
 
-        outbox_event = OutboxEvent(
-            event_id=payment_event.event_id,
-            type=payment_event.type,
-            payload=payment_event.model_dump(mode="json"),
+        await self._write_outbox(payment_event)
+
+    async def claim_event(self, event_id: str) -> bool:
+        stmt = (
+            insert(ProcessedEvent)
+            .values(event_id=event_id)
+            .on_conflict_do_nothing()
+            .returning(ProcessedEvent.event_id)
         )
 
-        self.session.add(payment)
-        self.session.add(outbox_event)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none() is not None
 
-        try:
-            await self.session.commit()
-        except SQLAlchemyError:
-            await self.session.rollback()
-            raise
+    def _write_outbox(self, event: PaymentProcessEvent):
+        outbox_event = OutboxEvent(
+            event_id=event.event_id,
+            type=event.type,
+            payload=event.model_dump(mode="json"),
+        )
+
+        self.session.add(outbox_event)
 
     @staticmethod
     def _build_payment_event(event: OrderCreatedIntegrationEvent):

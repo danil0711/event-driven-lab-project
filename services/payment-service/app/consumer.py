@@ -14,6 +14,7 @@ class KafkaConsumer:
             bootstrap_servers=settings.kafka_bootstrap_servers,
             group_id=group_id,
             value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+            enable_auto_commit=False,
         )
 
     async def start(self):
