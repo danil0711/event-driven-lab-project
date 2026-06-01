@@ -35,16 +35,20 @@ async def main():
                 continue
 
             try:
+                # TODO
+                # Сделать идемпотентную обработку Kafka-событий по event_id.
+                #  Повторная доставка уже обработанного события не должна приводить к ошибке и ретраям —
+                #  дубликат должен считаться успешно обработанным с последующим commit offset.
                 async with SessionLocal() as session:
                     service = InventoryService(session)
 
                     await service.process(event)
                     await session.commit()
 
-                    logger.info(f'event помещен в аутбокс: {event.event_id}')
+                    logger.info(f"event помещен в аутбокс: {event.event_id}")
 
                     await consumer.consumer.commit()
-                
+
             except Exception as e:
                 logger.error(f"Processing failed, event: {event.event_id}, {e}")
 

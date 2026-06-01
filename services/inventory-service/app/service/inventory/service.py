@@ -1,8 +1,8 @@
-# Остатки товаров
-import random
+from sqlalchemy.dialects.postgresql import insert
 
 from app.core.logger import logger
 from app.models.outbox_events import OutboxEvent
+from app.models.processed_event import ProcessedEvent
 from app.service.inventory.schema import (
     InventoryResponse,
     InventoryResponseType,
@@ -22,16 +22,21 @@ class InventoryService:
         # if random.random() < 0.5:
         #     raise Exception("Inventory service crashed")
 
+        is_new = await self.claim_event(event.event_id)
+
+        if not is_new:
+            logger.info(f"Duplicate event {event.event_id}")
+            return
+
         response = await self._handle(event)
 
         await self._write_outbox(response)
-
 
     async def _handle(self, event: PaymentEvent) -> InventoryResponse:
         event_id = event.event_id
 
         if event.type != PaymentType.SUCCESS:
-            logger.debug('Payment не success')
+            logger.debug("Payment не success")
             return InventoryResponse(
                 event_id=event_id,
                 type=InventoryResponseType.INVENTORY_SKIPPED,
@@ -42,7 +47,7 @@ class InventoryService:
             available = STOCK.get(item.product_id)
 
             if available < item.quantity:
-                logger.debug('Inventory failed')
+                logger.debug("Inventory failed")
                 return InventoryResponse(
                     event_id=event_id,
                     type=InventoryResponseType.INVENTORY_FAILED,
@@ -68,3 +73,14 @@ class InventoryService:
                 payload=response.model_dump(mode="json"),
             )
         )
+
+    async def claim_event(self, event_id: str) -> bool:
+        stmt = (
+            insert(ProcessedEvent)
+            .values(event_id=event_id)
+            .on_conflict_do_nothing()
+            .returning(ProcessedEvent.event_id)
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none() is not None

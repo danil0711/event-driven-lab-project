@@ -1,5 +1,4 @@
-
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.sql import or_
@@ -9,13 +8,18 @@ from app.core.logger import logger
 from app.models.outbox_events import OutboxEvent, OutboxStatus
 
 
+BACKOFF = {
+    1: 3,
+    2: 10,
+    3: 30,
+    4: 60,
+}
 
 MAX_RETRIES = 5
 
 
 def _backoff_seconds(retry_count: int) -> int:
-    # экспоненциальный backoff с капом
-    return min(60, 2 ** retry_count)
+    return BACKOFF.get(retry_count, 60)
 
 
 class OutboxPublisher:
@@ -25,7 +29,7 @@ class OutboxPublisher:
         self.topic = topic
 
     async def run_once(self):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         result = await self.session.execute(
             select(OutboxEvent)
@@ -37,6 +41,7 @@ class OutboxPublisher:
                 ),
             )
             .limit(100)
+            .order_by(OutboxEvent.next_attempt_at.asc())
         )
 
         events = result.scalars().all()
@@ -55,7 +60,6 @@ class OutboxPublisher:
                 if event.retry_count >= MAX_RETRIES:
                     event.status = OutboxStatus.FAILED.value
 
-                    # optional: можно сразу слать в DLQ Kafka topic
                     await self.kafka.send(
                         f"{self.topic}.dlq",
                         event.payload,
@@ -64,6 +68,8 @@ class OutboxPublisher:
                 else:
                     event.status = OutboxStatus.PENDING.value
                     delay = _backoff_seconds(event.retry_count)
-                    event.next_attempt_at = datetime.utcnow() + timedelta(seconds=delay)
+                    event.next_attempt_at = datetime.now(timezone.utc) + timedelta(
+                        seconds=delay
+                    )
 
         await self.session.commit()
