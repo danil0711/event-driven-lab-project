@@ -11,7 +11,7 @@ app = FastAPI()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    ensure_topics()
+    await ensure_topics()
     kafka = KafkaProducer()
     await kafka.start()
 
