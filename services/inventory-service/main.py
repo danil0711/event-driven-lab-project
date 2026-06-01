@@ -35,10 +35,6 @@ async def main():
                 continue
 
             try:
-                # TODO
-                # Сделать идемпотентную обработку Kafka-событий по event_id.
-                #  Повторная доставка уже обработанного события не должна приводить к ошибке и ретраям —
-                #  дубликат должен считаться успешно обработанным с последующим commit offset.
                 async with SessionLocal() as session:
                     service = InventoryService(session)
 
