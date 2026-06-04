@@ -47,6 +47,11 @@ class Settings(BaseSettings):
 
     kafka_payments_topic: KafkaTopic = Field(default="payments")
 
+    production: bool = Field(
+        default=False,
+        validation_alias="PRODUCTION",
+    )
+
     @property
     def postgres_dsn(self) -> str:
         return (
