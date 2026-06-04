@@ -1,12 +1,11 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_client import make_asgi_app
 
 from app.bootstrap.kafka import ensure_topics
 from app.infrastructure.kafka.producer import KafkaProducer
 from app.api.orders import router as order_router
-
-app = FastAPI()
 
 
 @asynccontextmanager
@@ -14,6 +13,8 @@ async def lifespan(app: FastAPI):
     await ensure_topics()
     kafka = KafkaProducer()
     await kafka.start()
+
+    app.mount("/metrics", make_asgi_app())
 
     # кладём в app.state (ВАЖНО)
     app.state.kafka = kafka
