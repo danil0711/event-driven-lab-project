@@ -15,8 +15,14 @@ scrape_configs:
 
     relabel_configs:
       - source_labels: [__meta_docker_container_name]
-        regex: "/(.*)"
+        regex: "/(order-service|order-outbox-worker)"
+        target_label: service
+        replacement: "orders"
+        action: replace
+
+      - source_labels: [__meta_docker_container_name]
         target_label: container
+        regex: "/(.*)"
         replacement: "$1"
         action: replace
 
