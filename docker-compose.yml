@@ -35,6 +35,16 @@ services:
     ports:
       - "9092:9092"
       - "29092:29092"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-broker-api-versions --bootstrap-server localhost:9092",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: kafka-zookeeper:2181
@@ -71,6 +81,23 @@ services:
       - "8000:8000"
     networks:
       - app
+
+
+  outbox-worker:
+    build:
+      context: ./services/order-service
+    container_name: order-outbox-worker
+    command: python outbox_worker.py
+    env_file:
+      - ./services/order-service/.env
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    networks:
+      - app
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:latest
