@@ -1,4 +1,5 @@
 import json
+import asyncio
 from aiokafka import AIOKafkaProducer
 
 from app.core.config import settings
@@ -12,7 +13,17 @@ class KafkaProducer:
             bootstrap_servers=settings.kafka_bootstrap_servers,
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
         )
-        await self.producer.start()
+
+        for attempt in range(30):
+            try:
+                await self.producer.start()
+                print("Kafka connected")
+                return
+            except Exception as e:
+                print(f"Kafka unavailable ({attempt+1}/30): {e}")
+                await asyncio.sleep(2)
+
+        raise RuntimeError("Could not connect to Kafka")
 
     async def stop(self):
         if self.producer:
