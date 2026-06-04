@@ -46,12 +46,22 @@ class OutboxPublisher:
         events: Sequence[OutboxEvent] = result.scalars().all()
 
         for event in events:
-            logger.info(f"Outbox worker got event: {event.event_id}")
+            log = logger.bind(event_id=event.event_id)
+
+            log.info("Outbox воркер получил event")
             try:
                 await self.kafka.publish(self.topic, event.payload)
+
+                log.info(
+                    "Outbox отправил событие",
+                    topic=self.topic,
+                )
+
                 event.status = OutboxStatus.SENT.value
 
             except Exception as e:
+                log.exception("Outbox не смог отправить сообщение")
+    
                 event.retry_count += 1
                 event.last_error = str(e)
 
@@ -63,8 +73,19 @@ class OutboxPublisher:
                         event.payload,
                     )
 
+                    log.error(
+                        "Outbox поместил event в DLQ",
+                        retry_count=event.retry_count,
+                    )
+
                 else:
                     event.status = OutboxStatus.PENDING.value
+
+                    log.warning(
+                    "Outbox ретраит event",
+                    retry_count=event.retry_count,
+                    next_attempt_at=event.next_attempt_at.isoformat(),
+                )
 
                     delay = _backoff_seconds(event.retry_count)
                     event.next_attempt_at = datetime.now(timezone.utc) + timedelta(

@@ -1,13 +1,24 @@
+
+
 import asyncio
 
+from app.core.logger import logger
+
+
 from app.db import async_session_maker
+
+
 from app.core.config import settings
+
+
 from app.infrastructure.kafka.producer import KafkaProducer
+
+
 from app.services.outbox.service import OutboxPublisher
 
+logger.info('Запуск outbox worker')
 
 async def main():
-    print('Запуск outbox worker')
     kafka = KafkaProducer()
 
     await kafka.start()

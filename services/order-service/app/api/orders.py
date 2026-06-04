@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -19,11 +21,15 @@ async def create_order(
 ):
     service = OrderService(session)
 
+    request_id = uuid.uuid4()
+
     try:
         async with session.begin():
             order = await service.create_order(
                 user_id=request.user_id,
                 items=request.items,
+                request_id=request_id
+                
             )
 
         return {
