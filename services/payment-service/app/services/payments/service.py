@@ -9,6 +9,7 @@ from app.models.processed_event import ProcessedEvent
 from app.services.payments.schema import (
     OrderCreatedIntegrationEvent,
     PaymentProcessEvent,
+    PaymentType,
 )
 
 
@@ -17,19 +18,27 @@ class PaymentService:
         self.session = session
 
     async def process(self, event: OrderCreatedIntegrationEvent) -> None:
+        
 
         event = OrderCreatedIntegrationEvent.model_validate(event)
+
+        log = logger.bind(event_id=event.event_id)
+
+
+        log.info('Обработка event')
 
         is_new = await self.claim_event(event.event_id)
 
         if not is_new:
-            logger.info(f"Duplicate event {event.event_id}")
+            log.info("Дубликат event")
             return
 
         
 
         # симуляция оплаты
         payment_event = PaymentService._build_payment_event(event)
+
+        log.info(f"Payment process: {payment_event.type}")
 
         payment = Payment(
             order_id=event.order_id,
@@ -39,6 +48,11 @@ class PaymentService:
         self.session.add(payment)
 
         await self._write_outbox(payment_event)
+
+        log.info(
+            "Payment записан в аутбокс, status={}",
+            payment_event.type,
+        )
 
     async def claim_event(self, event_id: str) -> bool:
         stmt = (
@@ -61,12 +75,12 @@ class PaymentService:
         self.session.add(outbox_event)
 
     @staticmethod
-    def _build_payment_event(event: OrderCreatedIntegrationEvent):
+    def _build_payment_event(event: OrderCreatedIntegrationEvent) -> PaymentProcessEvent:
         """Используем PaymentProcessEvent для валидации"""
         if random.random() < 0.7:
             payment_event = PaymentProcessEvent(
                 event_id=event.event_id,
-                type="payment_success",
+                type=PaymentType.SUCCESS,
                 order_id=event.order_id,
                 reason=None,
                 items=event.items,
@@ -75,7 +89,7 @@ class PaymentService:
         else:
             payment_event = PaymentProcessEvent(
                 event_id=event.event_id,
-                type="payment_failed",
+                type=PaymentType.FAILED,
                 order_id=event.order_id,
                 reason="random_fail",
                 items=event.items,
