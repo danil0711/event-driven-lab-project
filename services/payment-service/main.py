@@ -1,7 +1,8 @@
 import asyncio
 
 from app.consumer import KafkaConsumer
-from app.core.bootstrap.kafka import ensure_topics
+from app.core.logger import logger
+from app.core.bootstrap.kafka import ensure_topics, start_kafka_with_retry
 from app.core.config import get_settings
 from app.core.db import async_session_maker
 from app.producer import KafkaProducer
@@ -9,9 +10,16 @@ from app.services.payments.service import PaymentService
 
 settings = get_settings()
 
+logger.info("Старт сервиса payment")
+
 
 async def main():
-    print("Старт сервиса")
+
+    producer = KafkaProducer(settings)
+
+    await start_kafka_with_retry(producer)
+
+    logger.info("Запуск loop")
 
     await ensure_topics()
 
@@ -20,15 +28,11 @@ async def main():
         group_id="orders-consumer",
     )
 
-    producer = KafkaProducer(settings)
-
     await consumer.start()
     await producer.start()
 
     try:
         async for event in consumer.listen():
-            print("Получен event:", event["event_id"], event)
-
             async with async_session_maker() as session:
                 service = PaymentService(session)
                 try:
@@ -36,9 +40,17 @@ async def main():
                     await session.commit()
 
                     await consumer.consumer.commit()
-                except Exception as e:
+
+                    logger.debug(
+                        "Offset committed, event_id={}",
+                        event["event_id"],
+                    )
+                except Exception:
                     await session.rollback()
-                    print(f"Ошибка обработки event {event['event_id']}: {e}")
+                    logger.exception(
+                        "Ошибка обработки event, event_id={}",
+                        event["event_id"],
+                    )
 
     finally:
         await consumer.stop()
