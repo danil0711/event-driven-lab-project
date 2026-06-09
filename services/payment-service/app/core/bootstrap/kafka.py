@@ -1,7 +1,11 @@
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
-
+import asyncio
 from app.core.logger import logger
 from app.core.config import get_settings
+
+from aiokafka.errors import KafkaConnectionError
+
+from app.producer import KafkaProducer
 
 settings = get_settings()
 
@@ -14,7 +18,19 @@ async def ensure_topics() -> None:
     await admin.start()
 
     try:
-        existing_topics = await admin.list_topics()
+        existing_topics = None
+
+        # --- RETRY: ждём пока Kafka реально поднимется ---
+        for attempt in range(1, 31):
+            try:
+                existing_topics = await admin.list_topics()
+                break
+            except Exception as e:
+                logger.warning(f"Kafka not ready ({attempt}/30): {e}")
+                await asyncio.sleep(min(2 * attempt, 10))  # backoff
+
+        if existing_topics is None:
+            raise RuntimeError("Kafka did not become ready in time")
 
         required_topics = [
             settings.kafka_payments_topic,
@@ -31,10 +47,37 @@ async def ensure_topics() -> None:
         ]
 
         if missing_topics:
-            logger.info("Создаю кафка-топик.")
+            logger.info("Создаю кафка-топики.")
             await admin.create_topics(missing_topics)
         else:
-            logger.info("Кафка топик уже существуют.")
+            logger.info("Все кафка топики уже существуют.")
 
     finally:
         await admin.close()
+
+
+async def start_kafka_with_retry(
+    kafka: KafkaProducer,
+    attempts: int = 30,
+    delay: int = 2,
+) -> None:
+    for attempt in range(1, attempts + 1):
+        try:
+            await kafka.start()
+
+            logger.info(
+                "Kafka connected on attempt %s",
+                attempt,
+            )
+            return
+
+        except KafkaConnectionError:
+            logger.warning(
+                "Kafka unavailable. Attempt %s/%s",
+                attempt,
+                attempts,
+            )
+
+        await asyncio.sleep(delay)
+
+    raise RuntimeError("Kafka startup timeout")
