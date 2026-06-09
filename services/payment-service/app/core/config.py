@@ -36,6 +36,11 @@ class Settings(BaseSettings):
         validation_alias="POSTGRES_PORT",
     )
 
+    production: bool = Field(
+        default=False,
+        validation_alias="PRODUCTION",
+    )
+
     kafka_payments_topic: KafkaTopic = Field(default="payments")
 
     @property
