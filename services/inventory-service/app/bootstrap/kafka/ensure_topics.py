@@ -1,7 +1,13 @@
+import asyncio
+
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 
 from app.core.logger import logger
 from app.core.config import get_settings
+
+from aiokafka.errors import KafkaConnectionError
+
+from app.producer import KafkaProducer
 
 settings = get_settings()
 
@@ -39,3 +45,30 @@ async def ensure_topics() -> None:
 
     finally:
         await admin.close()
+
+
+async def start_kafka_with_retry(
+    kafka: KafkaProducer,
+    attempts: int = 30,
+    delay: int = 2,
+) -> None:
+    for attempt in range(1, attempts + 1):
+        try:
+            await kafka.start()
+
+            logger.info(
+                "Kafka connected on attempt %s",
+                attempt,
+            )
+            return
+
+        except KafkaConnectionError:
+            logger.warning(
+                "Kafka unavailable. Attempt %s/%s",
+                attempt,
+                attempts,
+            )
+
+        await asyncio.sleep(delay)
+
+    raise RuntimeError("Kafka startup timeout")

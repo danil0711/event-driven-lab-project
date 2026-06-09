@@ -1,5 +1,6 @@
 import asyncio
 
+from app.bootstrap.kafka.ensure_topics import start_kafka_with_retry
 from app.core.logger import logger
 from app.core.db import async_session_maker
 from app.core.config import get_settings
@@ -15,6 +16,9 @@ async def outbox_worker():
     logger.info("Outbox worker started")
 
     kafka = KafkaProducer(settings)
+
+    await start_kafka_with_retry(kafka)
+
     await kafka.start()
 
     try:
