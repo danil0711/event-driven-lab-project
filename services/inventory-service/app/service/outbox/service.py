@@ -47,13 +47,23 @@ class OutboxPublisher:
         events = result.scalars().all()
 
         for event in events:
-            logger.info(f"Outbox worker got event: {event.event_id}")
+            log = logger.bind(
+                event_id=event.event_id,
+                topic=self.topic,
+            )
+            log.info("Outbox worker получил event")
             try:
                 await self.kafka.send(self.topic, event.payload)
+
+                log.info(
+                    "Событие отправлено в Kafka, status={}",
+                    OutboxStatus.SENT.value,
+                )
 
                 event.status = OutboxStatus.SENT.value
 
             except Exception as e:
+                log.exception("Не удалось отправить событие в Kafka")
                 event.retry_count += 1
                 event.last_error = str(e)
 
@@ -65,11 +75,22 @@ class OutboxPublisher:
                         event.payload,
                     )
 
+                    log.error(
+                        "Событие помещено в DLQ, retry_count={}",
+                        event.retry_count,
+                    )
+
                 else:
                     event.status = OutboxStatus.PENDING.value
                     delay = _backoff_seconds(event.retry_count)
                     event.next_attempt_at = datetime.now(timezone.utc) + timedelta(
                         seconds=delay
                     )
+
+                    log.warning(
+    "Повторная попытка отправки, retry_count={}, next_attempt_at={}",
+    event.retry_count,
+    event.next_attempt_at.isoformat(),
+)
 
         await self.session.commit()

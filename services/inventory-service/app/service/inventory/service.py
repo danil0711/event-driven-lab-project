@@ -22,21 +22,46 @@ class InventoryService:
         # if random.random() < 0.5:
         #     raise Exception("Inventory service crashed")
 
+        log = logger.bind(
+            event_id=event.event_id,
+            order_id=event.order_id,
+        )
+
+        log.info("Обработка event")
+
         is_new = await self.claim_event(event.event_id)
 
         if not is_new:
-            logger.info(f"Duplicate event {event.event_id}")
+            log.info("Дубликат event")
             return
 
         response = await self._handle(event)
 
+        log.info(
+            "Результат проверки склада, status={}",
+            response.type,
+        )
+
         await self._write_outbox(response)
 
+        log.info(
+            "Событие записано в outbox, status={}",
+            response.type,
+        )
+
     async def _handle(self, event: PaymentEvent) -> InventoryResponse:
+
+        log = logger.bind(
+            event_id=event.event_id,
+            order_id=event.order_id,
+        )
+
         event_id = event.event_id
 
         if event.type != PaymentType.SUCCESS:
-            logger.debug("Payment не success")
+            log.info(
+                "Проверка склада пропущена, платеж неуспешен",
+            )
             return InventoryResponse(
                 event_id=event_id,
                 type=InventoryResponseType.INVENTORY_SKIPPED,
@@ -47,7 +72,12 @@ class InventoryService:
             available = STOCK.get(item.product_id)
 
             if available < item.quantity:
-                logger.debug("Inventory failed")
+                log.warning(
+                    "Недостаточно товара на складе, product_id={}, available={}, requested={}",
+                    item.product_id,
+                    available,
+                    item.quantity,
+                )
                 return InventoryResponse(
                     event_id=event_id,
                     type=InventoryResponseType.INVENTORY_FAILED,
@@ -58,6 +88,10 @@ class InventoryService:
 
         for item in event.items:
             STOCK[item.product_id] -= item.quantity
+
+        log.info(
+            "Товар успешно зарезервирован",
+        )
 
         return InventoryResponse(
             event_id=event_id,
