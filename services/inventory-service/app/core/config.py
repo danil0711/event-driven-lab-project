@@ -38,6 +38,11 @@ class Settings(BaseSettings):
         validation_alias="POSTGRES_PORT",
     )
 
+    production: bool = Field(
+        default=False,
+        validation_alias="PRODUCTION",
+    )
+
     @property
     def postgres_dsn(self) -> str:
         return (
