@@ -2,6 +2,7 @@
 
 import asyncio
 
+from app.bootstrap.kafka import start_kafka_with_retry
 from app.core.logger import logger
 
 
@@ -16,10 +17,15 @@ from app.infrastructure.kafka.producer import KafkaProducer
 
 from app.services.outbox.service import OutboxPublisher
 
-logger.info('Запуск outbox worker')
+
+
+
 
 async def main():
+    logger.info('Запуск outbox worker')
     kafka = KafkaProducer()
+
+    await start_kafka_with_retry(kafka)
 
     await kafka.start()
 

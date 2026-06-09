@@ -12,6 +12,7 @@ settings = get_settings()
 
 
 async def payments_saga_worker():
+    logger.info('Payments SAGA worker stating.')
     consumer = KafkaConsumer(
         topic=settings.kafka_payments_topic,
         group_id="order-saga-consumer",

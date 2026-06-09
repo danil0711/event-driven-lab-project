@@ -3,6 +3,7 @@
 import asyncio
 
 from app.consumer import KafkaConsumer
+from app.core.logger import logger
 from app.core.config import get_settings
 from app.db import async_session_maker
 from app.services.saga.inventory.schema import InventoryResponse
@@ -13,6 +14,7 @@ settings = get_settings()
 
 
 async def inventory_saga_worker():
+    logger.info('Payments SAGA worker stating.')
     consumer = KafkaConsumer(
         topic=settings.kafka_inventory_topic,
         group_id="order-saga-inventory",
