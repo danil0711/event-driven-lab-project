@@ -1,0 +1,153 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: ed-lab-project-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/init:/docker-entrypoint-initdb.d
+    networks:
+      - app
+
+  # ---------------------
+  # KAFKA
+  # ---------------------
+
+  kafka-zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: ed-lab-project-kafka-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - app
+
+  kafka-broker:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: ed-lab-project-kafka-broker
+    depends_on:
+      - kafka-zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-broker-api-versions --bootstrap-server localhost:9092",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: kafka-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    networks:
+      - app
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: ed-lab-project-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: kafka-zookeeper:2181
+    depends_on:
+      - kafka-broker
+      - kafka-zookeeper
+    networks:
+      - app
+  # ---------------------
+  # PROMETHEUS
+  # ---------------------
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ed-lab-project-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - observability
+      - app
+
+  # ---------------------
+  # GRAFANA
+  # ---------------------
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ed-lab-project-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - observability
+
+  # ---------------------
+  # LOKI
+  # ---------------------
+
+  loki:
+    container_name: ed-lab-project-loki
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - observability
+
+  # ---------------------
+  # PROMTAIL
+  # ---------------------
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./infra/promtail.yml:/etc/promtail/config.yml
+    command:
+      - -config.file=/etc/promtail/config.yml
+    networks:
+      - observability
+
+volumes:
+  postgres_data:
+  grafana_data:
+
+networks:
+  app:
+    name: kafka-lab-app
+
+  observability:
+    name: kafka-lab-observability

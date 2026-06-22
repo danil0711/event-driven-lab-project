@@ -1,0 +1,158 @@
+version: "3.8"
+
+services:
+  # ---------------------
+  # 
+  # МИКРОСЕРВИС ORDERS
+  # 
+  # ---------------------
+  order-service:
+    build:
+      context: ./services/order-service
+    container_name: order-service
+    labels:
+      service: orders
+    env_file:
+      - ./services/order-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    ports:
+      - "8000:8000"
+    networks:
+      - app
+
+  order-outbox-worker:
+    build:
+      context: ./services/order-service
+    container_name: order-outbox-worker
+    labels:
+      service: orders
+    command: python outbox_worker.py
+    env_file:
+      - ./services/order-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
+
+  order-inventory-saga-worker:
+    build:
+      context: ./services/order-service
+    container_name: order-inventory-saga-worker
+    labels:
+      service: orders
+    command: python inventory_saga_worker.py
+    env_file:
+      - ./services/order-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
+
+  order-payment-saga-worker:
+    build:
+      context: ./services/order-service
+    container_name: order-payment-saga-worker
+    labels:
+      service: orders
+    command: python payments_saga_worker.py
+    env_file:
+      - ./services/order-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
+
+  # ---------------------
+  # 
+  # МИКРОСЕРВИС PAYMENTS
+  # 
+  # ---------------------
+  payment-service:
+    build:
+      context: ./services/payment-service
+    container_name: payment-service
+    labels:
+      service: payments
+    command: python main.py
+
+    env_file:
+      - ./services/payment-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
+  payment-outbox-worker:
+    build:
+      context: ./services/payment-service
+    container_name: payment-outbox-worker
+    labels:
+      service: payments
+    command: python outbox_worker.py
+    env_file:
+      - ./services/payment-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
+
+  # ---------------------
+  # 
+  # МИКРОСЕРВИС INVENTORY
+  # 
+  # ---------------------
+
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+    container_name: inventory-service
+    labels:
+      service: inventory
+    command: python main.py
+
+    env_file:
+      - ./services/inventory-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
+  inventory-outbox-worker:
+    build:
+      context: ./services/inventory-service
+    container_name: inventory-outbox-worker
+    labels:
+      service: inventory
+    command: python outbox_worker.py
+    env_file:
+      - ./services/inventory-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
+
+networks:
+  app:
+    external: true
+    name: kafka-lab-app
