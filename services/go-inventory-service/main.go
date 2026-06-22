@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log"
 
-	"orders/internal/config"
-	"orders/internal/db"
-	"orders/internal/inventory"
-	"orders/internal/kafka"
+	"inventory/internal/config"
+	"inventory/internal/db"
+	"inventory/internal/inventory"
+	"inventory/internal/kafka"
 
 	"github.com/joho/godotenv"
 )

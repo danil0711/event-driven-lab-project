@@ -2,8 +2,8 @@ package kafka
 
 import (
 	"context"
+	"inventory/internal/config"
 	"log"
-	"orders/internal/config"
 
 	"github.com/segmentio/kafka-go"
 )

@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"orders/internal/config"
+	"inventory/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
