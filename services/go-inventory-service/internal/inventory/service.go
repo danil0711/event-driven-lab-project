@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -24,14 +25,15 @@ func NewService(db *pgxpool.Pool) *Service {
 }
 
 func (s *Service) HandleBusiness(
+	ctx context.Context,
+	tx pgx.Tx,
 	event PaymentEvent,
 ) (*InventoryResponse, error) {
 
-	ctx := context.Background()
-
-	isNew, err := s.claimEvent(context.Background(), event.EventID)
+	isNew, err := s.claimEvent(ctx, tx, event.EventID)
 	if err != nil {
 		log.Printf("Ошибка БД: %v", err)
+		return nil, err
 	}
 
 	if !isNew {
@@ -41,7 +43,7 @@ func (s *Service) HandleBusiness(
 
 	response := s.handle(event)
 
-	if err := s.writeOutbox(ctx, response); err != nil {
+	if err := s.writeOutbox(ctx, tx, response); err != nil {
 		return nil, err
 	}
 
@@ -126,36 +128,34 @@ func (s *Service) handle(event PaymentEvent) InventoryResponse {
 
 }
 
-func (s *Service) claimEvent(ctx context.Context, eventID string) (bool, error) {
-	var id string
+func (s *Service) claimEvent(ctx context.Context, tx pgx.Tx, eventID string) (bool, error) {
 
-	err := s.db.QueryRow(
+	cmdTag, err := tx.Exec(
 		ctx,
 		`
 		INSERT INTO processed_events(event_id)
 		VALUES ($1)
 		ON CONFLICT DO NOTHING
-		RETURNING event_id
 		`,
 		eventID,
-	).Scan(&id)
+	)
 
 	if err != nil {
 		// важно: сюда попадём если уже существует (no rows)
 		return false, nil
 	}
 
-	return true, nil
+	return cmdTag.RowsAffected() > 0, nil
 }
 
-func (s *Service) writeOutbox(ctx context.Context, response InventoryResponse) error {
+func (s *Service) writeOutbox(ctx context.Context, tx pgx.Tx, response InventoryResponse) error {
 
 	payload, err := json.Marshal(response)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Exec(
+	_, err = tx.Exec(
 		ctx,
 		`
 		INSERT INTO outbox_events (

@@ -57,13 +57,27 @@ func main() {
 			continue
 		}
 
-		result, err := service.HandleBusiness(event)
+		tx, err := pool.Begin(ctx)
 		if err != nil {
-			log.Println("handle error:", err)
+			log.Println("Transaction begin error ")
+			continue
+		}
+
+		result, err := service.HandleBusiness(ctx, tx, event)
+
+		if err != nil {
+			tx.Rollback(ctx)
+			log.Println("inventory service error:", err)
 			continue
 		}
 
 		if result == nil {
+			tx.Rollback(ctx)
+			continue
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			log.Println("Commit error", err)
 			continue
 		}
 
