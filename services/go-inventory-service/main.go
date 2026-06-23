@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"inventory/internal/config"
 	"inventory/internal/db"
@@ -43,11 +44,11 @@ func main() {
 	for {
 		msg, err := consumer.Read(ctx)
 		if err != nil {
-			log.Println("kafka read error:", err)
+			log.Println("kafka unavailable:", err)
+
+			time.Sleep(2 * time.Second)
 			continue
 		}
-
-		log.Println("raw message:", string(msg.Value))
 
 		var event inventory.PaymentEvent
 
