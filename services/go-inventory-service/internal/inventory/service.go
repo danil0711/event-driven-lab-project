@@ -155,6 +155,8 @@ func (s *Service) writeOutbox(ctx context.Context, tx pgx.Tx, response Inventory
 		return err
 	}
 
+	log.Println("Создаем outbox событие:", response.EventID)
+
 	_, err = tx.Exec(
 		ctx,
 		`
