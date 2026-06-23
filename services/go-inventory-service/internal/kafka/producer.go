@@ -2,27 +2,33 @@ package kafka
 
 import (
 	"context"
+	"inventory/internal/config"
 	"log"
-	"orders/internal/inventory"
 
 	"github.com/segmentio/kafka-go"
 )
 
-func startConsumer(service *inventory.Service) {
-	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{"localhost:29092"},
-		Topic:   "payments",
-		GroupID: "inventory-service",
+type Producer struct {
+	writer *kafka.Writer
+}
+
+func NewProducer(cfg config.Config) *Producer {
+	log.Println("creating kafka producer...")
+
+	writer := kafka.NewWriter(kafka.WriterConfig{
+		Brokers: []string{cfg.KafkaBootstrapServers},
+		Topic:   cfg.KafkaInventoryTopic,
 	})
 
-	for {
-		m, err := r.ReadMessage(context.Background())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Printf("message: %s", string(m.Value))
-
-		// дальше будем парсить JSON → PaymentEvent
+	return &Producer{
+		writer: writer,
 	}
+
+}
+
+func (c Producer) Write(ctx context.Context, value []byte) error {
+	return c.writer.WriteMessages(ctx, kafka.Message{
+		Key:   nil,
+		Value: value,
+	})
 }
