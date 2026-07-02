@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import get_settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
+from app.errors.order import OrderError, ProductNotFoundError
 from app.services.order.service import OrderService
 from app.services.order.schema import CreateOrderRequest
 
@@ -37,11 +38,15 @@ async def create_order(
             "status": order.status,
         }
 
-    except ValueError as e:
+
+    except ProductNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    except OrderError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="Database error")
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
