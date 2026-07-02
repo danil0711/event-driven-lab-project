@@ -1,8 +1,15 @@
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![Kafka](https://img.shields.io/badge/kafka-event--driven-black)
+![Postgres](https://img.shields.io/badge/postgres-multi--db-blue)
+![Architecture](https://img.shields.io/badge/saga-choreography-orange)
+![Observability](https://img.shields.io/badge/grafana-loki-red)
+![Observability](https://img.shields.io/badge/Go-00ADD8?logo=Go&logoColor=white&style=for-the-badge-)
+
 # Kafka + Outbox + Saga System
 
 ## Overview
 
-This is an event-driven system built as an experiment with:
+Event-driven microservices system demonstrating:
 - Outbox pattern
 - Kafka-based communication
 - Choreography Saga
