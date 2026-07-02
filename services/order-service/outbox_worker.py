@@ -1,9 +1,8 @@
-
-
 import asyncio
 
 from app.bootstrap.kafka import start_kafka_with_retry
 from app.core.logger import logger
+from prometheus_client import start_http_server
 
 
 from app.db import async_session_maker
@@ -18,11 +17,9 @@ from app.infrastructure.kafka.producer import KafkaProducer
 from app.services.outbox.service import OutboxPublisher
 
 
-
-
-
 async def main():
-    logger.info('Запуск outbox worker')
+    logger.info("Запуск outbox worker")
+    start_http_server(8001)
     kafka = KafkaProducer()
 
     await start_kafka_with_retry(kafka)
