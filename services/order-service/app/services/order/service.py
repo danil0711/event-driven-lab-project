@@ -2,10 +2,12 @@ import time
 import uuid
 
 from app.core.logger import logger
+from app.errors.order import ProductNotFoundError
 from app.events.orders import OrderCreatedEvent
 from app.models.orders import Order, OrderStatus
 from app.models.outbox_events import OutboxEvent, OutboxStatus
 from app.monitoring.consumer import OrderMetrics
+from app.monitoring.order_create import OrdersCreateMetrics
 from app.services.order.schema import OrderItem
 
 _PRICES = {10: 50, 20: 100}
@@ -36,14 +38,16 @@ class OrderService:
                 total_amount=total_amount,
             )
 
+            start = time.perf_counter()
+
             self.session.add(order)
             await self.session.flush()
 
+            OrdersCreateMetrics.observe_orders_create_db_latency(
+                time.perf_counter() - start
+            )
+
             log.bind(order_id=order.id).info("Заказ создан")
-
-            import asyncio
-
-            await asyncio.sleep(0.2)
 
             event = OrderCreatedEvent(
                 event_id=str(uuid.uuid4()),
@@ -53,7 +57,12 @@ class OrderService:
                 total_amount=total_amount,
             )
 
+            start = time.perf_counter()
+
             await self._write_outbox(event)
+            await self.session.flush()
+
+            OrdersCreateMetrics.observe_orders_outbox_seconds(time.perf_counter() - start)
 
             log.bind(
                 order_id=order.id,
@@ -64,9 +73,14 @@ class OrderService:
 
             return order
 
+        except ProductNotFoundError as e:
+            OrderMetrics.inc_order_creation_errors_total()
+            log.bind(reason=str(e)).error("Product not found")
+            raise
+
         except Exception:
             OrderMetrics.inc_order_creation_errors_total()
-            log.error("Ошибка создания заказа")
+            log.exception("Ошибка создания заказа")
             raise
 
         finally:
@@ -77,7 +91,7 @@ class OrderService:
 
         if price is None:
             # вместо падения даём понятную ошибку
-            raise ValueError(f"Продукт не найден по айди: {product_id}")
+            raise ProductNotFoundError(product_id)
 
         return price
 

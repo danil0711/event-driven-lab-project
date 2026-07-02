@@ -1,10 +1,13 @@
 from datetime import datetime, timedelta, timezone
+import time
 from typing import Sequence
 
 from sqlalchemy import or_, select
 
 from app.core.logger import logger
 from app.models.outbox_events import OutboxEvent, OutboxStatus
+from app.monitoring.order_create import OrdersCreateMetrics
+from app.monitoring.outbox import OutboxMetrics
 
 BACKOFF = {
     1: 3,
@@ -29,6 +32,7 @@ class OutboxPublisher:
     async def run_once(self):
 
         now = datetime.now(timezone.utc)
+        fetch_start = time.perf_counter()
 
         result = await self.session.execute(
             select(OutboxEvent)
@@ -45,12 +49,18 @@ class OutboxPublisher:
 
         events: Sequence[OutboxEvent] = result.scalars().all()
 
+        OutboxMetrics.observe_outbox_fetch_seconds(time.perf_counter() - fetch_start)
+
         for event in events:
             log = logger.bind(event_id=event.event_id)
 
             log.info("Outbox воркер получил event")
             try:
+                publish_start = time.perf_counter()
                 await self.kafka.publish(self.topic, event.payload)
+                OrdersCreateMetrics.observe_kafka_publish_seconds(
+                    time.perf_counter() - publish_start
+                )
 
                 log.info(
                     "Outbox отправил событие",
@@ -61,7 +71,7 @@ class OutboxPublisher:
 
             except Exception as e:
                 log.exception("Outbox не смог отправить сообщение")
-    
+
                 event.retry_count += 1
                 event.last_error = str(e)
 
@@ -82,10 +92,10 @@ class OutboxPublisher:
                     event.status = OutboxStatus.PENDING.value
 
                     log.warning(
-                    "Outbox ретраит event",
-                    retry_count=event.retry_count,
-                    next_attempt_at=event.next_attempt_at.isoformat(),
-                )
+                        "Outbox ретраит event",
+                        retry_count=event.retry_count,
+                        next_attempt_at=event.next_attempt_at.isoformat(),
+                    )
 
                     delay = _backoff_seconds(event.retry_count)
                     event.next_attempt_at = datetime.now(timezone.utc) + timedelta(
