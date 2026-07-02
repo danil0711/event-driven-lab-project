@@ -35,7 +35,7 @@ func main() {
 	producer := kafka.NewProducer(cfg)
 
 	for {
-		events, err := outbox.GetPendingEvent(ctx, pool)
+		events, err := outbox.GetPendingEvents(ctx, pool)
 
 		if err != nil {
 			log.Println(err)

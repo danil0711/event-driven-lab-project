@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func GetPendingEvent(ctx context.Context, pool *pgxpool.Pool) ([]OutboxEvent, error) {
+func GetPendingEvents(ctx context.Context, pool *pgxpool.Pool) ([]OutboxEvent, error) {
 	const query = `
 		SELECT
 			id,
