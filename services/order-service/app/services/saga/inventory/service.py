@@ -34,15 +34,15 @@ class InventorySagaService:
             order.status = OrderStatus.COMPLETED.value
             log.info("Заказ был зарезервирован")
 
-        elif event.type == InventoryResponseType.INVENTORY_FAILED:
-            order.status = OrderStatus.CANCELLED.value
+        # elif event.type == InventoryResponseType.INVENTORY_FAILED:
+        #     order.status = OrderStatus.CANCELLED.value
 
-            log.info("Заказ отмененн микросерисом inventory")
+        #     log.info("Заказ отмененн микросерисом inventory")
 
-        elif event.type == InventoryResponseType.INVENTORY_SKIPPED:
-            order.status = OrderStatus.CANCELLED.value
+        # elif event.type == InventoryResponseType.INVENTORY_SKIPPED:
+        #     order.status = OrderStatus.CANCELLED.value
 
-            log.info("Заказ отменен (INVENTORY_SKIPPED)")
+        #     log.info("Заказ отменен (INVENTORY_SKIPPED)")
 
         await self.session.commit()
 
