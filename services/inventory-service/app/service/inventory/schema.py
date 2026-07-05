@@ -8,7 +8,7 @@ class PaymentType(str, Enum):
 
 
 class InventoryResponseType(str, Enum):
-    INVENTORY_SKIPPED = "inventory_skipped"
+    # INVENTORY_SKIPPED = "inventory_skipped"
     INVENTORY_FAILED = "inventory_failed"
     INVENTORY_RESERVED = "inventory_reserved"
 
