@@ -58,16 +58,6 @@ class InventoryService:
 
         event_id = event.event_id
 
-        if event.type != PaymentType.SUCCESS:
-            log.info(
-                "Проверка склада пропущена, платеж неуспешен",
-            )
-            return InventoryResponse(
-                event_id=event_id,
-                type=InventoryResponseType.INVENTORY_SKIPPED,
-                order_id=event.order_id,
-            )
-
         for item in event.items:
             available = STOCK.get(item.product_id)
 
