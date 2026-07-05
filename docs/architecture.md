@@ -6,14 +6,14 @@ flowchart LR
 
 Client[Client] --> OrderService[Order Service]
 
-%% ===== ORDER DOMAIN =====
+%% ===== ORDER SERVICE =====
 OrderService --> OrdersDB[(Postgres: Orders)]
 OrderService --> OrderOutbox[(Postgres: Outbox)]
 
 OrderOutbox --> OrderOutboxWorker[Order Outbox Worker]
 OrderOutboxWorker --> KafkaOrder[(Kafka: order-events)]
 
-%% ===== PAYMENT DOMAIN =====
+%% ===== PAYMENT SERVICE =====
 KafkaOrder --> PaymentService[Payment Service]
 
 PaymentService --> PaymentDB[(Postgres: Payments)]
@@ -22,7 +22,7 @@ PaymentService --> PaymentOutbox[(Postgres: Outbox)]
 PaymentOutbox --> PaymentOutboxWorker[Payment Outbox Worker]
 PaymentOutboxWorker --> KafkaPayment[(Kafka: payment-events)]
 
-%% ===== INVENTORY DOMAIN =====
+%% ===== INVENTORY SERVICE =====
 KafkaPayment --> InventoryService[Inventory Service]
 
 InventoryService --> InventoryDB[(Postgres: Inventory)]
@@ -31,15 +31,22 @@ InventoryService --> InventoryOutbox[(Postgres: Outbox)]
 InventoryOutbox --> InventoryOutboxWorker[Inventory Outbox Worker]
 InventoryOutboxWorker --> KafkaInventory[(Kafka: inventory-events)]
 
-%% ===== SAGA STATE HANDLERS =====
-KafkaPayment --> PaymentSagaHandler[Payment Saga Handler]
-KafkaInventory --> InventorySagaHandler[Inventory Saga Handler]
+%% ===== ORDER SAGAS IN ORDER SERVICE =====
+KafkaPayment --> OrderPaymentSaga["Payment Saga Service (Order)"]
 
-PaymentSagaHandler --> OrderService
-InventorySagaHandler --> OrderService
+KafkaInventory --> OrderInventorySaga["Inventory Saga Service (Order)"]
+
+OrderPaymentSaga --> OrdersDB
+OrderInventorySaga --> OrdersDB
+
+%% ===== PAYMENT COMPENSATION SAGA =====
+KafkaInventory --> PaymentInventorySaga["Inventory Saga Service (Payment)"]
+
+PaymentInventorySaga --> PaymentOutbox
+PaymentOutboxWorker --> KafkaPayment
 
 %% ===== FINAL STATE =====
-OrderService --> OrdersDB
+OrdersDB --> OrderService
 ```
 
 ---
@@ -97,7 +104,6 @@ It reacts to the result of the inventory processing stage and updates the Order 
 - Consume inventory-related events from Kafka:
   - `inventory_reserved`
   - `inventory_failed`
-  - `inventory_skipped`
 - Update Order state in Postgres based on inventory outcome
 - Persist final saga step state
 - Ensure correct progression and completion of the saga workflow
@@ -139,6 +145,29 @@ Responsibilities:
 - Guarantee at-least-once delivery
 
 ---
+
+### Payment Inventory Saga Worker (Python)
+
+This service is a **saga state handler inside the Payment domain**.
+
+It reacts to inventory outcomes and determines whether a refund should be triggered.
+
+Responsibilities:
+- Consume `inventory-events` from Kafka:
+  - `INVENTORY_FAILED`
+- Locate related Payment record in Postgres
+- Update payment status based on inventory result:
+  - SUCCESS → no action (already completed)
+  - INVENTORY_FAILED → initiate refund flow
+- Create `payment_refunded` event if refund is required
+- Write refund event to Payments Outbox table
+- Ensure refund event is published reliably via Outbox Worker
+
+This service is responsible for **compensating actions (refunds)** after inventory failure.
+
+It does NOT modify Orders directly.
+
+Order state changes are handled by Order Saga Workers.
 
 ### Inventory Service (Python)
 

@@ -24,6 +24,7 @@ Each event contains:
 
 - `payment_success`
 - `payment_failed`
+- `payment_refunded`
 - emitted by Payments Saga Worker
 
 ---
@@ -32,7 +33,6 @@ Each event contains:
 
 - `inventory_reserved`
 - `inventory_failed`
-- `inventory_skipped`  *(if payments_failed)*
 
 emitted by Inventory Saga Worker
 
