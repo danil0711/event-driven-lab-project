@@ -64,14 +64,14 @@ async def start_kafka_with_retry(
             await kafka.start()
 
             logger.info(
-                "Kafka connected on attempt %s",
+                "Kafka connected on attempt {}",
                 attempt,
             )
             return
 
         except KafkaConnectionError:
             logger.warning(
-                "Kafka unavailable. Attempt %s/%s",
+                "Kafka unavailable. Attempt {}/{}",
                 attempt,
                 attempts,
             )
