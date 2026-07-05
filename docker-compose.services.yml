@@ -113,6 +113,22 @@ services:
       - app
     restart: unless-stopped
 
+  payment-inventory-saga-worker:
+    build:
+      context: ./services/payment-service
+    container_name: payment-inventory-saga-worker
+    labels:
+      service: payments
+    command: python inventory_saga_worker.py
+    env_file:
+      - ./services/payment-service/.env
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    networks:
+      - app
+    restart: unless-stopped
+
 
   # ---------------------
   # 
