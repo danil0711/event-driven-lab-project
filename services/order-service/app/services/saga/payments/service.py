@@ -8,7 +8,7 @@ from app.models.processed_requests import ProcessedEvent
 from app.services.saga.payments.schema import PaymentProcessEvent, PaymentType
 
 
-class SagaService:
+class PaymentSagaService:
     def __init__(self, session):
         self.session = session
 
@@ -40,6 +40,11 @@ class SagaService:
 
             log.info("Заказ не удалось оплатить, status={}", OrderStatus.FAILED)
             order.status = OrderStatus.FAILED.value
+
+        elif event.type == PaymentType.REFUNDED:
+
+            log.info("Заказ отменен. Деньги были возвращены, status={}", OrderStatus.FAILED)
+            order.status = OrderStatus.CANCELLED.value
 
         await self.session.commit()
 

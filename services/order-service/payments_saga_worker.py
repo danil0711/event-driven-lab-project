@@ -5,7 +5,7 @@ from app.core.logger import logger
 from app.core.config import get_settings
 from app.db import async_session_maker
 from app.services.saga.payments.schema import PaymentProcessEvent
-from app.services.saga.payments.service import SagaService
+from app.services.saga.payments.service import PaymentSagaService
 
 
 settings = get_settings()
@@ -26,7 +26,7 @@ async def payments_saga_worker():
             logger.info(f'Saga event: {event.event_id}')
 
             async with async_session_maker() as session:
-                service = SagaService(session)
+                service = PaymentSagaService(session)
                 await service.process(event)
 
     finally:
