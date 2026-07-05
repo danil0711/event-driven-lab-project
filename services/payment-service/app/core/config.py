@@ -16,6 +16,8 @@ class Settings(BaseSettings):
         default="orders",
     )
 
+    kafka_inventory_topic: KafkaTopic = Field(default="inventory")
+
     postgres_user: str = Field(
         validation_alias="POSTGRES_USER",
     )

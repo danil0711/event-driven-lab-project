@@ -13,6 +13,7 @@ from app.models.base import Base
 from app.models.outbox_events import OutboxEvent
 from app.models.payments import Payment
 from app.models.processed_event import ProcessedEvent
+from app.models.inventory_processed_event import InventoryProcessedEvent
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
