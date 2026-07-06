@@ -140,9 +140,33 @@ services:
     networks:
       - observability
 
+
+  tempo:
+    image: grafana/tempo:2.5.0
+
+    user: "0:0"
+
+    
+    container_name: ed-lab-project-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+
+    volumes:
+      - ./infra/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/tmp/tempo
+
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317:4317"   # OTLP gRPC
+
+    networks:
+      - observability
+
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   grafana_data:
+  tempo_data:
 
 networks:
   app:
