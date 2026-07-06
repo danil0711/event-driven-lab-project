@@ -21,6 +21,8 @@ class OutboxEvent(Base):
 
     payload = Column(JSON, nullable=False)
 
+    headers = Column(JSON, nullable=True)
+
     status = Column(String, nullable=False, default=OutboxStatus.PENDING.value)
 
     retry_count = Column(Integer, nullable=False, default=0)
