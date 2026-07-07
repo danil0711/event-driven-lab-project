@@ -47,6 +47,8 @@ class Settings(BaseSettings):
 
     kafka_payments_topic: KafkaTopic = Field(default="payments")
 
+    otel_endpont: str = Field(default="http://localhost:4317", validation_alias="OTEL_ENDPOINT")
+
     production: bool = Field(
         default=False,
         validation_alias="PRODUCTION",
