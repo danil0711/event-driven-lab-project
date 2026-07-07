@@ -4,12 +4,14 @@ from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
 from app.bootstrap.kafka import ensure_topics, start_kafka_with_retry
+from app.core.tracing import init_tracing
 from app.infrastructure.kafka.producer import KafkaProducer
 from app.api.orders import router as order_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_tracing()
     kafka = KafkaProducer()
     await start_kafka_with_retry(kafka)
     await ensure_topics()
